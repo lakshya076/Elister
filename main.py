@@ -1,11 +1,16 @@
-from PySide2.QtCore import SIGNAL, QSize, Qt, QUrl
+from PySide2 import QtCore
+from PySide2.QtCore import SIGNAL, QSize, Qt, QUrl, QCoreApplication
 from PySide2.QtWidgets import QLineEdit, QMainWindow, QTabWidget, QAction, QToolBar, QStatusBar, QLabel, QFileDialog, \
-    QApplication, QDialog, QDialogButtonBox, QVBoxLayout
-from PySide2.QtGui import QPalette, QPixmap, QColor, QIcon, QCursor, QKeySequence
+    QApplication, QDialog, QDialogButtonBox, QVBoxLayout, QWidget, QHBoxLayout, QPushButton
+from PySide2.QtGui import QPalette, QPixmap, QColor, QIcon, QCursor, QKeySequence, QFont
 from PySide2.QtWebEngineWidgets import QWebEngineView
 from PySide2.QtPrintSupport import QPrintPreviewDialog
 import os
 import sys
+import requests
+from urllib.request import urlretrieve
+import getpass
+import subprocess
 
 
 class LineEdit(QLineEdit):
@@ -16,12 +21,80 @@ class LineEdit(QLineEdit):
         self.emit(SIGNAL("clicked()"))
 
 
+class Update(QWidget):
+    def __init__(self, *args, **kwargs):
+        super(Update, self).__init__(*args, **kwargs)
+
+        url = 'https://raw.githubusercontent.com/Lakshya-Saxena560/um/master/elister_um'
+        req = requests.get(url)
+        versions = req.text
+
+        window_layout = QVBoxLayout()
+
+        title = QLabel("Elister Updates")
+        font = title.font()
+        font.setPointSize(14)
+        title.setFont(font)
+
+        button_layout = QHBoxLayout()
+
+        self.download_button = QPushButton()
+        self.download_button.setText('Download Now')
+        self.download_button.clicked.connect(lambda: self.download())
+
+        self.no_button = QPushButton()
+        self.no_button.setText('Not Now, Maybe Later')
+        self.no_button.clicked.connect(lambda: self.close())
+
+        button_layout.addWidget(self.download_button)
+        button_layout.addWidget(self.no_button)
+
+        update_checker = QLabel()
+        update_checker.setFont(QFont('Roboto'))
+
+        if versions[-6:-1] == '1.0.0':
+            update_checker.setText('No new version available. You can close this window now.')
+            self.download_button.setDisabled(True)
+            self.no_button.setDisabled(True)
+        else:
+            update_checker.setText('A new Version is available.\nClick on Download Now to download and install the '
+                                   'version right now!')
+
+
+        window_layout.addWidget(title)
+        window_layout.addWidget(QLabel("Version 1.0.0"))
+        window_layout.addWidget(QLabel(''))
+        window_layout.addWidget(update_checker)
+        window_layout.addLayout(button_layout)
+
+        self.setLayout(window_layout)
+
+    def download(self):
+        url = 'https://sourceforge.net/projects/elister/files/latest/download'
+
+        print('File Downloading')
+
+        username = getpass.getuser()
+        destination = f'C:\\Users\\{username}\\download.exe'
+
+        download = urlretrieve(url, destination)
+        subprocess.Popen(download, close_fds=True)
+
+        print('File downloaded')
+
+        print('Installing now:')
+
+        cmd = f'{destination} batch.exe'
+
+        returned_value = subprocess.call(cmd, shell=True)  # returns the exit code in unix
+        print('rVal:', returned_value)
+
+
 class AboutDialog(QDialog):
     def __init__(self, *args, **kwargs):
         super(AboutDialog, self).__init__(*args, **kwargs)
 
-        QBtn = QDialogButtonBox.Ok  # No cancel
-        self.buttonBox = QDialogButtonBox(QBtn)
+        self.buttonBox = QDialogButtonBox(QDialogButtonBox.Ok)
         self.buttonBox.accepted.connect(self.accept)
         self.buttonBox.rejected.connect(self.reject)
         self.setWindowIcon(QPixmap(os.path.join('images', 'logo.PNG')))
@@ -140,6 +213,12 @@ class Browser(QMainWindow):
         print_action.setShortcut(QKeySequence('Ctrl+P'))
         file_menu.addAction(print_action)
 
+        update_action = QAction('Check For Updates', self)
+        update_action.setStatusTip('Check for Updates')
+        update_action.triggered.connect(self.updates)
+        update_action.setShortcut(QKeySequence('Alt+U'))
+        file_menu.addAction(update_action)
+
         help_menu = self.menuBar().addMenu("&Help")
 
         about_action = QAction(QIcon(os.path.join('images', 'question.png')), "About Elister", self)
@@ -195,7 +274,6 @@ class Browser(QMainWindow):
 
     def update_title(self, browser):
         if browser != self.tabs.currentWidget():
-            # If this signal is not from the current tab, ignore
             return
 
         title = self.tabs.currentWidget().page().title()
@@ -205,8 +283,15 @@ class Browser(QMainWindow):
         self.tabs.currentWidget().setUrl(QUrl("https://www.google.com"))
 
     def about(self):
-        dlg = AboutDialog()
-        dlg.exec_()
+        about_dlg = AboutDialog()
+        about_dlg.exec_()
+
+    def updates(self):
+        self.update_dlg = Update()
+        self.update_dlg.show()
+
+        self.setWindowState(self.windowState() & ~QtCore.Qt.WindowMinimized | QtCore.Qt.WindowActive)
+        self.activateWindow()
 
     def open_file(self):
         filename, _ = QFileDialog.getOpenFileName(self, "Open file", "",
@@ -254,15 +339,12 @@ class Browser(QMainWindow):
     def update_urlbar(self, q, browser=None):
 
         if browser != self.tabs.currentWidget():
-            # If this signal is not from the current tab, ignore
             return
 
         if q.scheme() == 'https':
-            # Secure padlock icon
             self.httpsicon.setPixmap(QPixmap(os.path.join('images', 'lock-ssl.png')))
 
         else:
-            # Insecure padlock icon
             self.httpsicon.setPixmap(QPixmap(os.path.join('images', 'lock-nossl.png')))
 
         self.urlbar.setText(q.toString())
@@ -276,4 +358,6 @@ if __name__ == '__main__':
 
     window = Browser()
     window.show()
+    window.updates()
+
     sys.exit(app.exec_())
