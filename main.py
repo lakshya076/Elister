@@ -12,6 +12,7 @@ from urllib.request import urlretrieve
 import getpass
 import subprocess
 
+version_name = '1.0.0'
 
 class LineEdit(QLineEdit):
     def __init__(self, parent):
@@ -52,17 +53,18 @@ class Update(QWidget):
         update_checker = QLabel()
         update_checker.setFont(QFont('Roboto'))
 
-        if versions[-6:-1] == '1.0.0':
+        if versions[-6:-1] == version_name:
             update_checker.setText('No new version available. You can close this window now.')
             self.download_button.setDisabled(True)
             self.no_button.setDisabled(True)
+            self.close()
         else:
             update_checker.setText('A new Version is available.\nClick on Download Now to download and install the '
                                    'version right now!')
 
 
         window_layout.addWidget(title)
-        window_layout.addWidget(QLabel("Version 1.0.0"))
+        window_layout.addWidget(QLabel(f"Version {version_name}"))
         window_layout.addWidget(QLabel(''))
         window_layout.addWidget(update_checker)
         window_layout.addLayout(button_layout)
@@ -112,7 +114,7 @@ class AboutDialog(QDialog):
         logo.setPixmap(QPixmap(os.path.join('images', 'logo.PNG')))
         layout.addWidget(logo)
 
-        layout.addWidget(QLabel("Version 1.0.0"))
+        layout.addWidget(QLabel(f"Version {version_name}"))
 
         for i in range(0, layout.count()):
             layout.itemAt(i).setAlignment(Qt.AlignHCenter)
@@ -182,32 +184,28 @@ class Browser(QMainWindow):
         self.connect(self.urlbar, SIGNAL("clicked()"), self.select)
         navtb.addWidget(self.urlbar)
 
-        stop_btn = QAction(QIcon(os.path.join('images', 'cross-circle.png')), "Stop", self)
-        stop_btn.setStatusTip("Stop loading current page")
-        stop_btn.triggered.connect(lambda: self.tabs.currentWidget().stop())
-        navtb.addAction(stop_btn)
 
         file_menu = self.menuBar().addMenu("&File")
 
-        new_tab_action = QAction(QIcon(os.path.join('images', 'ui-tab--plus.png')), "New Tab", self)
+        new_tab_action = QAction("New Tab", self)
         new_tab_action.setStatusTip("Open a new tab")
         new_tab_action.triggered.connect(lambda _: self.add_new_tab())
         new_tab_action.setShortcut(QKeySequence('Ctrl+N'))
         file_menu.addAction(new_tab_action)
 
-        open_file_action = QAction(QIcon(os.path.join('images', 'disk--arrow.png')), "Open file...", self)
+        open_file_action = QAction("Open file...", self)
         open_file_action.setStatusTip("Open from file")
         open_file_action.triggered.connect(self.open_file)
         open_file_action.setShortcut(QKeySequence('Ctrl+O'))
         file_menu.addAction(open_file_action)
 
-        save_file_action = QAction(QIcon(os.path.join('images', 'disk--pencil.png')), "Save Page As...", self)
+        save_file_action = QAction("Save Page As...", self)
         save_file_action.setStatusTip("Save current page to file")
         save_file_action.triggered.connect(self.save_file)
         save_file_action.setShortcut(QKeySequence('Ctrl+S'))
         file_menu.addAction(save_file_action)
 
-        print_action = QAction(QIcon(os.path.join('images', 'printer.png')), "Print...", self)
+        print_action = QAction("Print...", self)
         print_action.setStatusTip("Print current page")
         print_action.triggered.connect(self.print_page)
         print_action.setShortcut(QKeySequence('Ctrl+P'))
@@ -221,17 +219,25 @@ class Browser(QMainWindow):
 
         help_menu = self.menuBar().addMenu("&Help")
 
-        about_action = QAction(QIcon(os.path.join('images', 'question.png')), "About Elister", self)
+        about_action = QAction("About Elister", self)
         about_action.setStatusTip("Find out more about Elister")
         about_action.triggered.connect(self.about)
-        about_action.setShortcut(QKeySequence('Alt+A'))
         help_menu.addAction(about_action)
 
-        navigate_elister_action = QAction(QIcon(os.path.join('images', 'lifebuoy.png')), "Elister Homepage", self)
+        navigate_elister_action = QAction("Elister Homepage", self)
         navigate_elister_action.setStatusTip("Go to Elister Homepage")
         navigate_elister_action.triggered.connect(self.navigate_elister)
-        navigate_elister_action.setShortcut(QKeySequence('Ctrl+H'))
         help_menu.addAction(navigate_elister_action)
+
+        update_logs = QAction("Elister Update Logs", self)
+        update_logs.setStatusTip("See Elister Update Logs")
+        update_logs.triggered.connect(lambda: self.update_logs())
+        help_menu.addAction(update_logs)
+
+        license = QAction('License', self)
+        license.setStatusTip("See the License")
+        license.triggered.connect(lambda: self.license())
+        help_menu.addAction(license)
 
         self.add_new_tab(QUrl('https://www.google.com'), 'Homepage')
 
@@ -239,6 +245,12 @@ class Browser(QMainWindow):
 
         self.setWindowTitle("Elister")
         self.setWindowIcon(QIcon(os.path.join('images', 'ma-icon-64.png')))
+
+    def update_logs(self):
+        os.startfile('update_logs.txt')
+
+    def license(self):
+        os.startfile('license.txt')
 
     def select(self):
         self.urlbar.selectAll()
@@ -290,7 +302,7 @@ class Browser(QMainWindow):
         self.update_dlg = Update()
         self.update_dlg.show()
 
-        self.setWindowState(self.windowState() & ~QtCore.Qt.WindowMinimized | QtCore.Qt.WindowActive)
+        self.setWindowState(self.windowState() & ~QtCore.Qt.WindowMaximized | QtCore.Qt.WindowActive)
         self.activateWindow()
 
     def open_file(self):
@@ -356,8 +368,10 @@ if __name__ == '__main__':
     app.setApplicationName("Elister")
     app.setOrganizationName("Elister")
 
+    app.setWindowIcon(QIcon('\images\logo.PNG'))
+
     window = Browser()
-    window.show()
     window.updates()
+    window.show()
 
     sys.exit(app.exec_())
