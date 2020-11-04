@@ -1,2 +1,5 @@
 VERSION 1.0.0:
 The default code for Elister
+
+VERSION 1.0.1:
+Minor bugs fixed

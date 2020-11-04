@@ -1,5 +1,4 @@
-from PySide2 import QtCore
-from PySide2.QtCore import SIGNAL, QSize, Qt, QUrl, QCoreApplication
+from PySide2.QtCore import SIGNAL, QSize, Qt, QUrl
 from PySide2.QtWidgets import QLineEdit, QMainWindow, QTabWidget, QAction, QToolBar, QStatusBar, QLabel, QFileDialog, \
     QApplication, QDialog, QDialogButtonBox, QVBoxLayout, QWidget, QHBoxLayout, QPushButton
 from PySide2.QtGui import QPalette, QPixmap, QColor, QIcon, QCursor, QKeySequence, QFont
@@ -11,8 +10,10 @@ import requests
 from urllib.request import urlretrieve
 import getpass
 import subprocess
+import threading
 
-version_name = '1.0.0'
+version_name = '1.0.2'
+
 
 class LineEdit(QLineEdit):
     def __init__(self, parent):
@@ -26,9 +27,8 @@ class Update(QWidget):
     def __init__(self, *args, **kwargs):
         super(Update, self).__init__(*args, **kwargs)
 
-        url = 'https://raw.githubusercontent.com/Lakshya-Saxena560/um/master/elister_um'
-        req = requests.get(url)
-        versions = req.text
+        self.setWindowIcon(QPixmap(os.path.join('images', 'elister.PNG')))
+        self.setWindowFlag(Qt.WindowStaysOnTopHint)
 
         window_layout = QVBoxLayout()
 
@@ -40,8 +40,8 @@ class Update(QWidget):
         button_layout = QHBoxLayout()
 
         self.download_button = QPushButton()
-        self.download_button.setText('Download Now')
-        self.download_button.clicked.connect(lambda: self.download())
+        self.download_button.setText('Install Now')
+        self.download_button.clicked.connect(lambda: self.install_update())
 
         self.no_button = QPushButton()
         self.no_button.setText('Not Now, Maybe Later')
@@ -53,14 +53,34 @@ class Update(QWidget):
         update_checker = QLabel()
         update_checker.setFont(QFont('Roboto'))
 
-        if versions[-6:-1] == version_name:
-            update_checker.setText('No new version available. You can close this window now.')
+
+        #proper flow control of the update mechanism
+        self.update_url = 'https://sourceforge.net/projects/elister/files/latest/download'
+        self.username = getpass.getuser()
+        self.destination = f'C:\\Users\\{self.username}\\AppData\\Local\\download.exe'
+
+        github_url = 'https://raw.githubusercontent.com/Lakshya-Saxena560/um/master/elister_um'
+        req = requests.get(github_url)
+        versions = req.text
+
+        def download_update():
+            print('File is Downloading')
+            download = urlretrieve(self.update_url, self.destination)
+            print('File Downloaded')
+
+
+        if versions[-6:-1] != version_name and self.destination == True:
+            update_checker.setText('A new Version is available and downloaded.\nClick on Install Now to install the'
+                                   ' version right now!                       ')
+
+        else:
+            update_checker.setText('You can close this window now.')
             self.download_button.setDisabled(True)
             self.no_button.setDisabled(True)
-            self.close()
-        else:
-            update_checker.setText('A new Version is available.\nClick on Download Now to download and install the '
-                                   'version right now!')
+
+            t1 = threading.Thread(target=download_update)
+            t1.start()
+
 
 
         window_layout.addWidget(title)
@@ -71,22 +91,8 @@ class Update(QWidget):
 
         self.setLayout(window_layout)
 
-    def download(self):
-        url = 'https://sourceforge.net/projects/elister/files/latest/download'
-
-        print('File Downloading')
-
-        username = getpass.getuser()
-        destination = f'C:\\Users\\{username}\\download.exe'
-
-        download = urlretrieve(url, destination)
-        subprocess.Popen(download, close_fds=True)
-
-        print('File downloaded')
-
-        print('Installing now:')
-
-        cmd = f'{destination} batch.exe'
+    def install_update(self):
+        cmd = f'{self.destination} batch.exe'
 
         returned_value = subprocess.call(cmd, shell=True)  # returns the exit code in unix
         print('rVal:', returned_value)
@@ -96,10 +102,12 @@ class AboutDialog(QDialog):
     def __init__(self, *args, **kwargs):
         super(AboutDialog, self).__init__(*args, **kwargs)
 
+        self.setWindowIcon(QPixmap(os.path.join('images', 'elister.PNG')))
+
         self.buttonBox = QDialogButtonBox(QDialogButtonBox.Ok)
         self.buttonBox.accepted.connect(self.accept)
         self.buttonBox.rejected.connect(self.reject)
-        self.setWindowIcon(QPixmap(os.path.join('images', 'logo.PNG')))
+        self.setWindowIcon(QPixmap(os.path.join('images', 'elister.PNG')))
 
         layout = QVBoxLayout()
 
@@ -111,7 +119,7 @@ class AboutDialog(QDialog):
         layout.addWidget(title)
 
         logo = QLabel()
-        logo.setPixmap(QPixmap(os.path.join('images', 'logo.PNG')))
+        logo.setPixmap(QPixmap(os.path.join('images', 'elister.PNG')))
         layout.addWidget(logo)
 
         layout.addWidget(QLabel(f"Version {version_name}"))
@@ -129,6 +137,8 @@ class Browser(QMainWindow):
         super(Browser, self).__init__(*args, **kwargs)
 
         self.setGeometry(30, 40, 1000, 500)
+
+        self.setWindowIcon(QPixmap(os.path.join('images', 'elister.PNG')))
 
         self.tabs = QTabWidget()
         self.tabs.setDocumentMode(True)
@@ -183,7 +193,6 @@ class Browser(QMainWindow):
         self.urlbar.setFixedHeight(30)
         self.connect(self.urlbar, SIGNAL("clicked()"), self.select)
         navtb.addWidget(self.urlbar)
-
 
         file_menu = self.menuBar().addMenu("&File")
 
@@ -302,9 +311,6 @@ class Browser(QMainWindow):
         self.update_dlg = Update()
         self.update_dlg.show()
 
-        self.setWindowState(self.windowState() & ~QtCore.Qt.WindowMaximized | QtCore.Qt.WindowActive)
-        self.activateWindow()
-
     def open_file(self):
         filename, _ = QFileDialog.getOpenFileName(self, "Open file", "",
                                                   "Hypertext Markup Language (*.htm *.html);;"
@@ -367,8 +373,6 @@ if __name__ == '__main__':
     app = QApplication(sys.argv)
     app.setApplicationName("Elister")
     app.setOrganizationName("Elister")
-
-    app.setWindowIcon(QIcon('\images\logo.PNG'))
 
     window = Browser()
     window.updates()
