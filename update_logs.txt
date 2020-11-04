@@ -3,3 +3,9 @@ The default code for Elister
 
 VERSION 1.0.1:
 Minor bugs fixed
+
+VERSION 1.0.2:
+Changes in the Auto-Update Mechanism
+
+VERSION 1.0.3:
+Again changes in the Auto-Update Mechanism

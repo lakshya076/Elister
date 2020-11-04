@@ -12,7 +12,7 @@ import getpass
 import subprocess
 import threading
 
-version_name = '1.0.2'
+version_name = '1.0.3'
 
 
 class LineEdit(QLineEdit):
@@ -41,7 +41,7 @@ class Update(QWidget):
 
         self.download_button = QPushButton()
         self.download_button.setText('Install Now')
-        self.download_button.clicked.connect(lambda: self.install_update())
+        self.download_button.clicked.connect(lambda: self.update_preparation())
 
         self.no_button = QPushButton()
         self.no_button.setText('Not Now, Maybe Later')
@@ -53,11 +53,10 @@ class Update(QWidget):
         update_checker = QLabel()
         update_checker.setFont(QFont('Roboto'))
 
-
-        #proper flow control of the update mechanism
+        # main flow control of the update mechanism
         self.update_url = 'https://sourceforge.net/projects/elister/files/latest/download'
         self.username = getpass.getuser()
-        self.destination = f'C:\\Users\\{self.username}\\AppData\\Local\\download.exe'
+        self.destination = f'C:\\Users\\{self.username}\\AppData\\Local\\elister_lv.exe'
 
         github_url = 'https://raw.githubusercontent.com/Lakshya-Saxena560/um/master/elister_um'
         req = requests.get(github_url)
@@ -68,19 +67,20 @@ class Update(QWidget):
             download = urlretrieve(self.update_url, self.destination)
             print('File Downloaded')
 
+        print(versions[-6:-1] + 'h')
 
-        if versions[-6:-1] != version_name and self.destination == True:
-            update_checker.setText('A new Version is available and downloaded.\nClick on Install Now to install the'
-                                   ' version right now!                       ')
-
-        else:
-            update_checker.setText('You can close this window now.')
-            self.download_button.setDisabled(True)
-            self.no_button.setDisabled(True)
-
-            t1 = threading.Thread(target=download_update)
-            t1.start()
-
+        if versions[-6:-1] != version_name:
+            if not os.path.isfile(self.destination):
+                update_checker.setText('You can close this window now.                 ')
+                self.download_button.setDisabled(True)
+                self.no_button.setDisabled(True)
+                t1 = threading.Thread(target=download_update)
+                t1.start()
+            else:
+                print(bool(self.destination))
+                update_checker.setText('A new Version is available and downloaded.\nClick on Install Now to install the'
+                                       ' version right now!                       \nNOTE: After clicking on \'Install\''
+                                       'Now, close all the windows associated with Elister even this window.')
 
 
         window_layout.addWidget(title)
@@ -93,9 +93,13 @@ class Update(QWidget):
 
     def install_update(self):
         cmd = f'{self.destination} batch.exe'
+        subprocess.call(cmd, shell=True)  # returns the exit code in unix
+        sys.exit()
 
-        returned_value = subprocess.call(cmd, shell=True)  # returns the exit code in unix
-        print('rVal:', returned_value)
+    def update_preparation(self):
+        t2 = threading.Thread(target=self.install_update)
+        t2.start()
+
 
 
 class AboutDialog(QDialog):
